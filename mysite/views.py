@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from django.shortcuts import render,HttpResponse
 from django.http import HttpRequest
-from .models import Product,Contact,Orders
+from .models import Product,Contact,Orders,OrderUpdate
 # Create your views here.
+import json
 from math import ceil
 
 def index(request):
@@ -29,17 +30,35 @@ def about(request):
     return render(request,'about.html')
 def contact(request):
     if request.method=="POST":
-         print(request)
-         name=request.POST.get('name',"")
-         email=request.POST.get('email',"")
-         phone=request.POST.get('phone',"")
-         desc=request.POST.get('desc',"")
-         contact=Contact(name=name,email=email,phone=phone,desc=desc)
-         contact.save()
-         print(name,email,phone,desc)
-    return render(request,'contact.html')
+        name = request.POST.get('name', '')
+        email = request.POST.get('email', '')
+        phone = request.POST.get('phone', '')
+        desc = request.POST.get('desc', '')
+        contact = Contact(name=name, email=email, phone=phone, desc=desc)
+        contact.save()
+    return render(request, 'contact.html')
+
+
 def tracker(request):
-    return render(request,'tracker.html')
+    if request.method=="POST":
+        orderId = request.POST.get('orderId', '')
+        email = request.POST.get('email', '')
+        try:
+            order = Orders.objects.filter(order_id=orderId, email=email)
+            if len(order)>0:
+                update = OrderUpdate.objects.filter(order_id=orderId)
+                updates = []
+                for item in update:
+                    updates.append({'text': item.update_desc, 'time': item.timestamp})
+                    response = json.dumps(updates, default=str)
+                return HttpResponse(response)
+            else:
+                return HttpResponse('{}')
+        except Exception as e:
+            return HttpResponse('{}')
+
+    return render(request, 'tracker.html')
+
 def search(request):
     return render(request,'search.html')
 def productview(request,myid):
