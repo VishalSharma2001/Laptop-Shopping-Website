@@ -29,6 +29,7 @@ def index(request):
 def about(request):
     return render(request,'about.html')
 def contact(request):
+    thank=False
     if request.method=="POST":
         name = request.POST.get('name', '')
         email = request.POST.get('email', '')
@@ -36,7 +37,8 @@ def contact(request):
         desc = request.POST.get('desc', '')
         contact = Contact(name=name, email=email, phone=phone, desc=desc)
         contact.save()
-    return render(request, 'contact.html')
+        thank=True
+    return render(request, 'contact.html', {'thank':thank})
 
 
 def tracker(request):
@@ -50,17 +52,40 @@ def tracker(request):
                 updates = []
                 for item in update:
                     updates.append({'text': item.update_desc, 'time': item.timestamp})
-                    response = json.dumps(updates, default=str)
+                    response = json.dumps({"status":"success", "updates": updates, "itemsJson": order[0].items_json}, default=str)
                 return HttpResponse(response)
             else:
-                return HttpResponse('{}')
+                return HttpResponse('{"status":"noitem"}')
         except Exception as e:
-            return HttpResponse('{}')
+            return HttpResponse('{"status":"error"}')
 
     return render(request, 'tracker.html')
 
+def searchMatch(query, item):
+    '''return true only if query matches the item'''
+    if query in item.desc.lower() or query in item.product_name.lower() or query in item.category.lower():
+        return True
+    else:
+        return False
+
 def search(request):
-    return render(request,'search.html')
+    query = request.GET.get('search')
+    allProds = []
+    catprods = Product.objects.values('category', 'id')
+    cats = {item['category'] for item in catprods}
+    for cat in cats:
+        prodtemp = Product.objects.filter(category=cat)
+        prod = [item for item in prodtemp if searchMatch(query, item)]
+
+        n = len(prod)
+        nSlides = n // 4 + ceil((n / 4) - (n // 4))
+        if len(prod) != 0:
+            allProds.append([prod, range(1, nSlides), nSlides])
+    params = {'allProds': allProds, "msg": ""}
+    if len(allProds) == 0 or len(query)<4:
+        params = {'msg': "Please make sure to enter relevant search query"}
+    return render(request, 'search.html', params)
+
 def productview(request,myid):
     product=Product.objects.filter(id=myid)
     print(product)
